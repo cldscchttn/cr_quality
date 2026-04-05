@@ -1,8 +1,7 @@
 FROM python:3.11-slim
-
 WORKDIR /app
 
-# Install system dependencies for psycopg2
+# Installa le dipendenze di sistema
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
@@ -11,11 +10,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
-COPY flask_app/ flask_app/
+COPY flask_app/ ./flask_app/
 COPY flask_entrypoint.sh .
 RUN chmod +x flask_entrypoint.sh
-
-EXPOSE 5000
 
 ENTRYPOINT ["/bin/sh", "/app/flask_entrypoint.sh"]
