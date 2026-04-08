@@ -15,7 +15,7 @@ load_dotenv(dotenv_path=env_path, override=True)
 print(f"DATABASE_URL after load_dotenv: {os.getenv('DATABASE_URL')}")
 
 from fastapi_app.database import check_database_url
-from fastapi_app.routes import popolazione, pazienti, casi
+from fastapi_app.routes import popolazione, pazienti, casi, tassi
 
 # Logging
 logging.basicConfig(
@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(popolazione.router)
 app.include_router(pazienti.router)
 app.include_router(casi.router)
+app.include_router(tassi.router)
 
 # Startup event
 @app.on_event("startup")
