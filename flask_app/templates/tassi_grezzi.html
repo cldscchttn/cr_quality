@@ -103,7 +103,7 @@
 <script>
 $(function () {
 
-    const TASSI_API_BASE = `${window.location.protocol}//${window.location.hostname}/api/tassi`;
+    const TASSI_API_BASE = {{ fastapi_api_base | tojson }};
 
     /* ── Definizione campi ───────────────────────────────────────────────── */
     const FIELDS = [
