@@ -40,12 +40,18 @@ def prova_api():
 @app.get("/tassigrezzi")
 def tassi_grezzi_page():
     logger.info("GET /tassigrezzi")
-    return render_template("tassi_grezzi.html")
+    return render_template(
+        "tassi_grezzi.html",
+        fastapi_api_base=f"{FASTAPI_BASE_URL}/api/tassi",
+    )
 
 @app.get("/tassistd")
 def tassi_std_page():
     logger.info("GET /tassistd")
-    return render_template("tassi_std.html")
+    return render_template(
+        "tassi_std.html",
+        fastapi_api_base=f"{FASTAPI_BASE_URL}/api/tassi",
+    )
 
 
 @app.get("/api/data")
