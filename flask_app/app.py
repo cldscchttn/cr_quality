@@ -32,6 +32,21 @@ def index():
     logger.info("GET /")
     return render_template("index.html")
 
+@app.get("/provaapi")
+def prova_api():
+    logger.info("GET /provaapi")
+    return render_template("provaapi.html")
+
+@app.get("/tassigrezzi")
+def tassi_grezzi_page():
+    logger.info("GET /tassigrezzi")
+    return render_template("tassi_grezzi.html")
+
+@app.get("/tassistd")
+def tassi_std_page():
+    logger.info("GET /tassistd")
+    return render_template("tassi_std.html")
+
 
 @app.get("/api/data")
 def api_data():

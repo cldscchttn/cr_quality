@@ -3,77 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CR Quality — Dashboard</title>
+  <title>CR Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>CR Quality Dashboard</h1>
+      <h1>CR Dashboard</h1>
       <p class="subtitle">Flask frontend · FastAPI backend</p>
     </header>
 
     <main>
       <section class="card">
-        <h2>Backend Status</h2>
-        <p>Click the button below to ping the FastAPI backend and display its response.</p>
-        <button id="fetchBtn" onclick="fetchData()">Fetch data from FastAPI</button>
+        <h2>Tabelle</h2>
+        <li><a href="/tassigrezzi">Tassi grezzi</a></li>
+        <li><a href="/tassistd">Tassi standardizzati</a></li>
       </section>
-
-      <section class="card" id="responseCard" hidden>
-        <h2>Response</h2>
-        <pre id="responseOutput"></pre>
-      </section>
-
-      <section class="card" id="errorCard" hidden>
-        <h2>Error</h2>
-        <pre id="errorOutput"></pre>
-      </section>
-    </main>
 
     <footer>
-      <p>FastAPI base URL: <code id="fastapiUrl"></code></p>
+      <p>Demo</p>
     </footer>
   </div>
 
-  <script>
-    async function fetchData() {
-      const btn = document.getElementById('fetchBtn');
-      const responseCard = document.getElementById('responseCard');
-      const errorCard = document.getElementById('errorCard');
-      const responseOutput = document.getElementById('responseOutput');
-      const errorOutput = document.getElementById('errorOutput');
-
-      // Reset state
-      responseCard.hidden = true;
-      errorCard.hidden = true;
-      btn.disabled = true;
-      btn.textContent = 'Fetching…';
-
-      try {
-        const res = await fetch('/api/data');
-        const data = await res.json();
-
-        if (!res.ok) {
-          errorOutput.textContent = JSON.stringify(data, null, 2);
-          errorCard.hidden = false;
-        } else {
-          responseOutput.textContent = JSON.stringify(data, null, 2);
-          responseCard.hidden = false;
-        }
-      } catch (err) {
-        errorOutput.textContent = `Network error: ${err.message}`;
-        errorCard.hidden = false;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Fetch data from FastAPI';
-      }
-    }
-
-    // Display the FastAPI URL for transparency
-    fetch('/api/data', { method: 'HEAD' }).catch(() => {});
-    document.getElementById('fastapiUrl').textContent =
-      'https://fastapi-75q7-production.up.railway.app';
-  </script>
 </body>
 </html>
