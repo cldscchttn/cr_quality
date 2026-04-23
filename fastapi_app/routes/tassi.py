@@ -197,7 +197,7 @@ def get_tassi_eta(
 
 
     where_sql_casi = ("WHERE " + " AND ".join(conditions_casi)) if conditions_casi else ""
-    where_sql_pop = ("WHERE " + " AND ".join(conditions_pop)) if conditions_pop else ""
+    where_sql_pop = ("WHERE " + " AND ".join(conditions_pop)) if conditions_pop else "WHERE annodicalendario between 2014 and 2016"  # limitato per disponibilità dati
 
     estrazione = """
         with
@@ -398,7 +398,7 @@ def get_tassi_std_eta(
 
 
     where_sql_casi = ("WHERE " + " AND ".join(conditions_casi)) if conditions_casi else ""
-    where_sql_pop = ("WHERE " + " AND ".join(conditions_pop)) if conditions_pop else ""
+    where_sql_pop = ("WHERE " + " AND ".join(conditions_pop)) if conditions_pop else "WHERE annodicalendario between 2014 and 2016"  # limitato per disponibilità dati
 
     estrazione = """
         with
