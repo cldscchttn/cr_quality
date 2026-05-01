@@ -53,6 +53,14 @@ def tassi_std_page():
         fastapi_api_base=f"{FASTAPI_BASE_URL}/api/tassi",
     )
 
+@app.get("/sopravvivenza")
+def sopravvivenza_page():
+    logger.info("GET /sopravvivenza")
+    return render_template(
+        "tassi_sopravvivenza.html",
+        fastapi_api_base=f"{FASTAPI_BASE_URL}/api/sopravvivenza",
+    )
+
 
 @app.get("/api/data")
 def api_data():
