@@ -62,6 +62,15 @@ def sopravvivenza_page():
     )
 
 
+@app.get("/sopravvivenza-mensile")
+def sopravvivenza_mensile_page():
+    logger.info("GET /sopravvivenza-mensile")
+    return render_template(
+        "tassi_sopravvivenza_mensile.html",
+        fastapi_api_base=f"{FASTAPI_BASE_URL}/api/sopravvivenza",
+    )
+
+
 @app.get("/api/data")
 def api_data():
     """Proxy to FastAPI /api/test and return the JSON result."""

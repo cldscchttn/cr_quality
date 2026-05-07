@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Indicatore — Sopravvivenza a 5 anni mese per mese (pivot dinamico) - Registro Tumori{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ base_url }}/">Home</a></li>
+        <li class="breadcrumb-item active">Sopravvivenza — Sopravvivenza osservata a 5 anni (Kaplan-Meier mensile)</li>
+    </ol>
+</nav>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white d-flex align-items-center justify-content-between">
+        <span><strong>Sopravvivenza</strong> — Sopravvivenza osservata a 5 anni (Kaplan-Meier mensile) %</span>
+        <span id="pivot-status" class="small fw-normal ms-3 opacity-75"></span>
+    </div>
+    <div class="card-body p-3">
+
+        <div class="pvt-config mb-3">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <div class="pvt-zone-title">Righe</div>
+                    <div class="pvt-sortable" id="zone-rows"></div>
+                </div>
+                <div class="col-md-4">
+                    <div class="pvt-zone-title">Colonne</div>
+                    <div class="pvt-sortable" id="zone-cols"></div>
+                </div>
+                <div class="col-md-4">
+                    <div class="pvt-zone-title">Non utilizzate</div>
+                    <div class="pvt-sortable" id="zone-unused"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pivot-wrap" style="overflow-x:auto;">
+            <p class="text-muted">Caricamento...</p>
+        </div>
+    </div>
+</div>
+
+<div id="filter-dropdown" style="display:none; position:fixed; z-index:9999;
+     background:#fff; border:1px solid #ced4da; border-radius:8px;
+     box-shadow:0 6px 18px rgba(0,0,0,.18); width:230px; padding:10px;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong id="filter-dd-title" style="font-size:.82rem"></strong>
+        <button id="filter-dd-close" class="btn-close btn-close-sm" style="font-size:.65rem"></button>
+    </div>
+    <div class="d-flex gap-2 mb-2">
+        <button id="filter-all"  class="btn btn-outline-secondary btn-sm flex-fill" style="font-size:.72rem">Tutto</button>
+        <button id="filter-none" class="btn btn-outline-secondary btn-sm flex-fill" style="font-size:.72rem">Niente</button>
+    </div>
+    <div id="filter-dd-list"
+         style="max-height:220px; overflow-y:auto; border:1px solid #e9ecef;
+                border-radius:4px; padding:4px 6px; margin-bottom:8px; font-size:.8rem">
+    </div>
+    <button id="filter-apply" class="btn btn-success btn-sm w-100 text-white">Applica</button>
+</div>
+
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<style>
+.pvt-config { background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; padding:10px 12px; }
+.pvt-zone-title { font-size:.72rem; font-weight:700; text-transform:uppercase;
+                  letter-spacing:.06em; color:#6c757d; margin-bottom:5px; }
+.pvt-sortable { min-height:34px; background:#fff; border:1.5px dashed #ced4da;
+                border-radius:4px; padding:4px 6px; display:flex; flex-wrap:wrap;
+                gap:4px; cursor:default; }
+.pvt-sortable.ui-sortable-over { border-color:#198754; background:#d1f0e0; }
+
+.pvt-chip { display:inline-flex; align-items:center; border-radius:14px;
+            font-size:.78rem; font-weight:500; cursor:grab;
+            user-select:none; white-space:nowrap; color:#fff; background:#0d6efd; }
+.pvt-chip:active { cursor:grabbing; }
+#zone-cols   .pvt-chip { background:#198754; }
+#zone-unused .pvt-chip { background:#6c757d; }
+
+.chip-label  { padding:3px 8px 3px 13px; }
+.chip-filter { padding:3px 9px 3px 4px; opacity:.75; cursor:pointer;
+               border-left:1px solid rgba(255,255,255,.3); font-size:.7rem;
+               line-height:1; display:flex; align-items:center; gap:2px; }
+.chip-filter:hover { opacity:1; }
+.chip-filter.active { opacity:1; background:rgba(255,255,255,.2); border-radius:0 14px 14px 0; }
+
+.pvt-table { font-size:.82rem; border-collapse:collapse; }
+.pvt-table th, .pvt-table td { padding:3px 9px; border:1px solid #dee2e6; white-space:nowrap; }
+.pvt-th-corner { background:#e9ecef; }
+.pvt-th-col { background:#d4edda; text-align:center; font-weight:600; }
+.pvt-th-row { background:#f8f9fa; font-weight:600; }
+.pvt-td-val { text-align:right; }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script>
+$(function () {
+
+    const API_BASE = {{ fastapi_api_base | tojson }};
+
+    const FIELDS = [
+        { id: 'sede',          label: 'Sede' },
+        { id: 'followup',      label: 'Follow-up' },
+        { id: 'base',          label: 'Base diagnosi' },
+        { id: 'comportamento', label: 'Comportamento' },
+        { id: 'grado',         label: 'Grado' },
+        { id: 'lateralita',    label: 'Lateralita' },
+        { id: 'fascia_eta',    label: 'Fascia eta' },
+        { id: 'sesso',         label: 'Sesso' },
+        { id: 'anno',          label: 'Anno' },
+        { id: 'comune',        label: 'Comune' },
+    ];
+    const SESSO = { '1': '1 - Maschi', '2': '2 - Femmine' };
+
+    let rowDims    = ['sesso'];
+    let colDims    = ['anno'];
+    let unusedDims = ['sede', 'followup', 'base', 'comportamento', 'grado', 'lateralita', 'fascia_eta', 'comune'];
+    let filters    = {};
+    let valCache   = {};
+    let ddField    = null;
+
+    function fieldLabel(id) { const f = FIELDS.find(x => x.id === id); return f ? f.label : id; }
+    function displayVal(fid, v) {
+        if (v == null) return '';
+        if (fid === 'sesso') return SESSO[String(v)] || v;
+        return String(v);
+    }
+    function fmtPct(n) {
+        if (n == null || isNaN(n)) return '';
+        return (Number(n) * 100).toLocaleString('it-IT', { minimumFractionDigits:1, maximumFractionDigits:1 }) + ' %';
+    }
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function isFiltered(fid) { return filters[fid] != null; }
+    function filterLabel(fid) {
+        const s = filters[fid];
+        return s ? ' (' + s.size + ')' : '';
+    }
+
+    function getFieldValues(fid) {
+        if (valCache[fid]) return Promise.resolve(valCache[fid]);
+        return fetch(`${API_BASE}/valori-campo?campo=${encodeURIComponent(fid)}`)
+            .then(r => r.json())
+            .then(vals => { valCache[fid] = vals.map(String); return valCache[fid]; });
+    }
+
+    function makeChip(fid) {
+        const chip = $('<div class="pvt-chip"></div>').attr('data-field', fid);
+        chip.append($('<span class="chip-label"></span>').text(fieldLabel(fid)));
+        const btn = $('<span class="chip-filter"></span>');
+        if (isFiltered(fid)) {
+            btn.addClass('active').html('▼<span style="font-size:.65rem">' + filterLabel(fid) + '</span>');
+        } else {
+            btn.text('▼');
+        }
+        btn.on('click', function (e) { e.stopPropagation(); openDropdown(fid, chip[0]); });
+        chip.append(btn);
+        return chip;
+    }
+
+    function renderChips() {
+        $('#zone-rows').empty();
+        $('#zone-cols').empty();
+        $('#zone-unused').empty();
+        rowDims.forEach(f    => $('#zone-rows').append(makeChip(f)));
+        colDims.forEach(f    => $('#zone-cols').append(makeChip(f)));
+        unusedDims.forEach(f => $('#zone-unused').append(makeChip(f)));
+    }
+
+    function readZones() {
+        rowDims    = $('#zone-rows .pvt-chip').map((_,el) => $(el).data('field')).get();
+        colDims    = $('#zone-cols .pvt-chip').map((_,el) => $(el).data('field')).get();
+        unusedDims = $('#zone-unused .pvt-chip').map((_,el) => $(el).data('field')).get();
+    }
+
+    function initSortable() {
+        $('.pvt-sortable').sortable({
+            connectWith: '.pvt-sortable',
+            placeholder: 'pvt-chip',
+            tolerance:   'pointer',
+            cancel:      '.chip-filter',
+            stop: function () { readZones(); renderChips(); loadData(); }
+        }).disableSelection();
+    }
+
+    function openDropdown(fid, anchorEl) {
+        if (ddField === fid) { closeDropdown(); return; }
+        ddField = fid;
+        const rect = anchorEl.getBoundingClientRect();
+        $('#filter-dd-title').text(fieldLabel(fid));
+        $('#filter-dd-list').html('<em class="text-muted">Caricamento...</em>');
+        $('#filter-dropdown').css({
+            top:  Math.min(rect.bottom + 4, window.innerHeight - 280),
+            left: Math.min(rect.left,       window.innerWidth  - 240)
+        }).show();
+        getFieldValues(fid).then(vals => {
+            const sel = filters[fid] || null;
+            let html = '';
+            vals.forEach(v => {
+                const checked = (sel === null || sel.has(v)) ? 'checked' : '';
+                html += `<label style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer">
+                    <input type="checkbox" class="flt-cb" value="${esc(v)}" ${checked}>${esc(displayVal(fid, v))}
+                </label>`;
+            });
+            $('#filter-dd-list').html(html);
+        });
+    }
+
+    function closeDropdown() { $('#filter-dropdown').hide(); ddField = null; }
+
+    $('#filter-dd-close').on('click', closeDropdown);
+    $('#filter-all').on('click',  () => $('#filter-dd-list .flt-cb').prop('checked', true));
+    $('#filter-none').on('click', () => $('#filter-dd-list .flt-cb').prop('checked', false));
+
+    $('#filter-apply').on('click', function () {
+        if (!ddField) return;
+        const allVals = valCache[ddField] || [];
+        const checked = $('#filter-dd-list .flt-cb:checked').map((_,el) => el.value).get();
+        filters[ddField] = (checked.length === 0 || checked.length === allVals.length) ? null : new Set(checked);
+        closeDropdown();
+        renderChips();
+        loadData();
+    });
+
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('#filter-dropdown, .chip-filter').length) closeDropdown();
+    });
+
+    function sortedEntries(map) {
+        return [...map.entries()].sort((a, b) => {
+            const av = a[1], bv = b[1];
+            for (let i = 0; i < Math.max(av.length, bv.length); i++) {
+                const x = av[i] ?? '', y = bv[i] ?? '';
+                const nx = parseFloat(x), ny = parseFloat(y);
+                if (!isNaN(nx) && !isNaN(ny) && nx !== ny) return nx - ny;
+                const c = String(x).localeCompare(String(y));
+                if (c !== 0) return c;
+            }
+            return 0;
+        });
+    }
+
+    function buildTable(data, rDims, cDims) {
+        if (!data || data.length === 0)
+            return '<p class="text-muted py-2">Nessun dato per la selezione corrente.</p>';
+
+        const rowMap = new Map(), colMap = new Map(), cellMap = new Map();
+        data.forEach(row => {
+            const rVals = rDims.map(d => row[d] != null ? String(row[d]) : '');
+            const cVals = cDims.map(d => row[d] != null ? String(row[d]) : '');
+            const rKey  = rVals.join('\x00');
+            const cKey  = cVals.join('\x00');
+            rowMap.set(rKey, rVals);
+            colMap.set(cKey, cVals);
+            cellMap.set(rKey + '|||' + cKey, row);
+        });
+
+        const rowEntries = rDims.length ? sortedEntries(rowMap) : [['', []]];
+        const colEntries = cDims.length ? sortedEntries(colMap) : [['', []]];
+        const rSpan = Math.max(rDims.length, 1);
+
+        let html = '<table class="pvt-table"><thead><tr>';
+        html += `<th class="pvt-th-corner" colspan="${rSpan}"></th>`;
+        colEntries.forEach(([, cVals]) => {
+            const lbl = cDims.length
+                ? cDims.map((d,i) => esc(displayVal(d, cVals[i]))).join(' / ')
+                : 'Sopravvivenza 5 anni';
+            html += `<th class="pvt-th-col">${lbl}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        rowEntries.forEach(([rKey, rVals]) => {
+            html += '<tr>';
+            const rowLbl = rDims.length
+                ? rDims.map((d,i) => esc(displayVal(d, rVals[i]))).join(' / ')
+                : 'Totale';
+            html += `<th class="pvt-th-row" colspan="${rSpan}">${rowLbl}</th>`;
+            colEntries.forEach(([cKey]) => {
+                const cell = cellMap.get(rKey + '|||' + cKey);
+                html += cell
+                    ? `<td class="pvt-td-val">${fmtPct(cell.sopravvivenza)}</td>`
+                    : '<td></td>';
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function loadData() {
+        const params = new URLSearchParams();
+        rowDims.forEach(d => params.append('rows', d));
+        colDims.forEach(d => params.append('cols', d));
+        Object.entries(filters).forEach(([fid, vals]) => {
+            if (vals && vals.size > 0) vals.forEach(v => params.append(fid, v));
+        });
+
+        const activeFilters = Object.values(filters).filter(v => v != null).length;
+        const filterNote = activeFilters ? ` · ${activeFilters} filtro/i attivo/i` : '';
+        $('#pivot-status').text('Interrogazione database...');
+        $('#pivot-wrap').html('<p class="text-muted small">Caricamento...</p>');
+
+        const t0 = Date.now();
+        fetch(`${API_BASE}/sopravvivenza-mensile?${params.toString()}`)
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(payload => {
+                const data = Array.isArray(payload) ? payload : (payload.data || []);
+                const ms = Date.now() - t0;
+                $('#pivot-status').text(`${data.length} combinazioni · ${ms} ms${filterNote}`);
+                $('#pivot-wrap').html(buildTable(data, rowDims, colDims));
+            })
+            .catch(err => {
+                $('#pivot-status').text('Errore: ' + err.message);
+                $('#pivot-wrap').html('<div class="alert alert-danger">Errore: ' + esc(err.message) + '</div>');
+            });
+    }
+
+    renderChips();
+    initSortable();
+    loadData();
+});
+</script>
+
+{% endblock %}
